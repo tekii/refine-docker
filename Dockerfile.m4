@@ -8,7 +8,7 @@ MAINTAINER Pablo Jorge Eduardo Rodriguez <pr@tekii.com.ar>
 
 LABEL version="__REFINE_VERSION__"
 
-RUN apt-get update && apt-get install -y wget
+RUN apt-get update && apt-get install -y --no-install-recommends wget
 
 ENV REFINE_HOME=__REFINE_HOME__ \
     REFINE_VERSION=__REFINE_VERSION__ \
