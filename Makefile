@@ -30,7 +30,7 @@ $(TARBALL):
 	wget $(LOCATION)/$@
 #	md5sum --check $@.md5
 
-original/: $(TARBALL) config.patch
+original/: $(TARBALL)
 	mkdir -p $@
 	tar zxvf $(TARBALL) -C $@ --strip-components=1
 patched/: $(TARBALL) config.patch
@@ -72,8 +72,7 @@ git-push:
 
 .PHONY: clean realclean all
 clean:
-	rm -rf original
-	rm -f Dockerfile
+	rm -rf original/ patched/
 
 realclean: clean
 	rm -f $(REFINE_TARBALL)
