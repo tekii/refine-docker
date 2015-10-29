@@ -1,69 +1,83 @@
 ##
 ## REFINE
 ##
-REFINE_VERSION:=2.6-beta.1
-REFINE_TARBALL:=openrefine-linux-$(REFINE_VERSION).tar.gz
-REFINE_LOCATION:=https://github.com/OpenRefine/OpenRefine/releases/download/$(REFINE_VERSION)
+VERSION:=2.6-rc.2
+TARBALL:=openrefine-linux-$(VERSION).tar.gz
+LOCATION:=https://github.com/OpenRefine/OpenRefine/releases/download/$(VERSION)
+
 REFINE_ROOT:=patched
-REFINE_HOME=/var/refine
-DOCKER_TAG:=tekii/refine:$(REFINE_VERSION)
+INSTALL:=/opt/refine
+HOME:=/var/refine
+USER:=daemon
+GROUP:=daemon
+
+TAG:=tekii/refine:$(VERSION)
+PROJECT_ID:=mrg-tky
 
 ##
 ## M4
 ##
 M4= $(shell which m4)
 M4_FLAGS= -P \
-	-D __REFINE_VERSION__=$(REFINE_VERSION) \
-	-D __REFINE_ROOT__=$(REFINE_ROOT) \
-	-D __REFINE_HOME__=$(REFINE_HOME) \
-	-D __DOCKER_TAG__=$(DOCKER_TAG)
+	-D __VERSION__=$(VERSION) \
+	-D __LOCATION__=$(LOCATION) \
+	-D __TARBALL__=$(TARBALL) \
+	-D __INSTALL__=$(INSTALL) \
+	-D __HOME__=$(HOME) \
+	-D __USER__=$(USER) -D __GROUP__=$(GROUP)
 
-$(REFINE_TARBALL):
-	wget $(REFINE_LOCATION)/$(REFINE_TARBALL)
-#	md5sum --check $(JDK_TARBALL).md5
+$(TARBALL):
+	wget $(LOCATION)/$@
+#	md5sum --check $@.md5
 
-$(REFINE_ROOT): $(REFINE_TARBALL) config.patch
+original/: $(TARBALL) config.patch
 	mkdir -p $@
-	tar zxvf $(REFINE_TARBALL) -C $@ --strip-components=1
+	tar zxvf $(TARBALL) -C $@ --strip-components=1
+patched/: $(TARBALL) config.patch
+	mkdir -p $@
+	tar zxvf $(TARBALL) -C $@ --strip-components=1
 	patch -p0 -i config.patch
 
-#.SECONDARY
+.PHONY: update-patch
+update-patch: original/
+	diff -ruN original/ patched/ > config.patch; [ $$? -eq 1 ]
+
+.SECONDARY: Dockerfile
 Dockerfile: Dockerfile.m4 Makefile
 	$(M4) $(M4_FLAGS) $< >$@
 
 
-PHONY += update-patch
-update-patch:
-	diff -ruN original/ $(REFINE_ROOT)/  > config.patch; [ $$? -eq 1 ]
+.PHONY: image
+image: Dockerfile config.patch
+	docker build -t $(TAG) .
 
-PHONY += image
-image: $(REFINE_TARBALL) Dockerfile $(REFINE_ROOT)
-	docker build -t $(DOCKER_TAG) .
-
-PHONY+= run
+.PHONY: run
 run: #image
-	docker run -p 3333:3333 -v $(shell pwd)/volume:$(REFINE_HOME) $(DOCKER_TAG)
+	docker run -p 3333:3333 -v $(shell pwd)/volume:$(HOME) $(TAG)
 
-PHONY+= push-to-docker
-push-to-docker: image
-	docker push $(DOCKER_TAG)
-
-PHONY += push-to-google
+.PHONY: push-to-google
 push-to-google: image
-	docker tag $(DOCKER_TAG) gcr.io/test-teky/refine:$(REFINE_VERSION)
-	gcloud docker push gcr.io/test-teky/refine:$(REFINE_VERSION)
+	docker tag $(TAG) gcr.io/$(PROJECT_ID)/$(TAG)
+	gcloud docker push gcr.io/$(PROJECT_ID)/$(TAG)
 
-PHONY += clean
+PHONY += git-tag git-push
+git-tag:
+	-git tag -d $(VERSION)
+	git tag $(VERSION)
+
+git-push:
+	-git push origin :refs/tags/$(VERSION)
+	git push origin
+	git push --tags origin
+
+.PHONY: clean realclean all
 clean:
-	rm -rf $(REFINE_ROOT)
-	rm -f Dokerfile	
+	rm -rf original
+	rm -f Dockerfile
 
-PHONY += realclean
 realclean: clean
 	rm -f $(REFINE_TARBALL)
 
-PHONY += all
-all: $(JDK_TARBALL)
+all:
 
-.PHONY: $(PHONY)
 .DEFAULT_GOAL := all

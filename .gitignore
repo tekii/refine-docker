@@ -1,8 +1,7 @@
 *.tar.gz
-Dockerfile
 *~
 #*
 .#*
-patched
-original
-volume
+patched*
+original*
+volume*

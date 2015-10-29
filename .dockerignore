@@ -4,7 +4,7 @@ Dockerfile.m4
 .git
 *.md
 *.tar.gz
-*.template
 *.yaml
-original
-volume
+original*
+patched*
+volume*
